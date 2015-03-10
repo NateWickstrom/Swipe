@@ -9,6 +9,12 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import com.facebook.rebound.BaseSpringSystem;
+import com.facebook.rebound.SimpleSpringListener;
+import com.facebook.rebound.Spring;
+import com.facebook.rebound.SpringSystem;
+import com.facebook.rebound.SpringUtil;
+
 /**
  * Draw a bitmap with an x-offset related to touch input.
  */
@@ -29,6 +35,11 @@ public class TouchImageView extends View {
     private float mTouchX;
     // our listener
     private OnSwipeListener mSwipeListener;
+
+    private final BaseSpringSystem mSpringSystem = SpringSystem.create();
+    private final ExampleSpringListener mSpringListener = new ExampleSpringListener();
+    private Spring mScaleSpring;
+    private float dropX;
 
     // listener for when touch input crosses into a boarder zone
     public interface OnSwipeListener {
@@ -54,6 +65,9 @@ public class TouchImageView extends View {
         mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mPaint.setColor(Color.BLUE);
         mPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+
+        // Create the animation spring.
+        mScaleSpring = mSpringSystem.createSpring();
     }
 
     public void setOnSwipeListener(OnSwipeListener listener){
@@ -113,6 +127,9 @@ public class TouchImageView extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                mScaleSpring.removeAllListeners();
+                mScaleSpring.setEndValue(0);
+
                 // Is the touch location valid?
                 if (mTouchX > xMax || mTouchX < xMin)
                     break;
@@ -142,6 +159,11 @@ public class TouchImageView extends View {
                 mXCenterOffset = mTouchX;
                 break;
             case MotionEvent.ACTION_UP:
+                if (mIsTrackingTouch) {
+                    dropX = mTouchX;
+                    mScaleSpring.setEndValue(1);
+                    mScaleSpring.addListener(mSpringListener);
+                }
                 mIsTrackingTouch = false;
                 break;
         }
@@ -149,6 +171,15 @@ public class TouchImageView extends View {
         //redraw
         invalidate();
         return true;
+    }
+
+    private class ExampleSpringListener extends SimpleSpringListener {
+
+        @Override
+        public void onSpringUpdate(Spring spring) {
+            mXCenterOffset = (float) SpringUtil.mapValueFromRangeToRange(spring.getCurrentValue(), 0, 1, dropX, mCenterX);
+            invalidate();
+        }
     }
 
 }
